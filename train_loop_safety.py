@@ -113,7 +113,7 @@ def run_loop(args_):
     config = load_config(args.config)
     logger_kwargs={'output_dir':args.exp_name+'_s'+str(args.seed), 'exp_name':args.exp_name}
     logger = EpochLogger(**logger_kwargs)
-    logger.save_config(locals())
+    #logger.save_config(locals())
 
     print("---------------------------------------")
     print("Policy: {}, Env: {}, Seed: {}".format(
