@@ -336,7 +336,7 @@ class Logger:
                 val = self.log_current_row.get(key, "")
                 if val is not "" and self.cml_logger is not None:                    
                     self.cml_logger.report_scalar(
-                        title="eval",
+                        title=key,
                         series=key,
                         value=val,
                         iteration=self.log_current_row["Timesteps"],
