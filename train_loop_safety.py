@@ -9,7 +9,8 @@ import time
 import sac
 import yaml
 from logging_utils.logx import EpochLogger
-
+import clearml
+import box
 
 def load_config(config_path="config.yml"):
     if os.path.isfile(config_path):
@@ -94,7 +95,21 @@ DEFAULT_ENV_CONFIG_CAR = dict(
 
 rc_envs = ['Straight-v0','Circle-v0','Drift-v0']
 
-def run_loop(args):
+def run_loop(args_):
+    args = {}
+    if not args_.local:
+        task = clearml.Task.init()
+        task_params = task.get_parameters_as_dict(cast=True)
+        d = task_params["internal"]
+        for k, v in d.items():
+            args[k] = v
+    else:
+        dct = vars(args_)
+        for k, v in dct.items():
+            args[k] = v
+    
+    args = box.Box(args)
+    
     config = load_config(args.config)
     logger_kwargs={'output_dir':args.exp_name+'_s'+str(args.seed), 'exp_name':args.exp_name}
     logger = EpochLogger(**logger_kwargs)
@@ -241,5 +256,8 @@ if __name__=='__main__':
     parser.add_argument("--dynamics_freq", default=250, type=int)
     parser.add_argument("--exp_name", default="dump")
     parser.add_argument('--config', '-c', type=str, default='configs/safety_config_gym.yml', help="specify the path to the configuation file of the models")
+    parser.add_argument(
+        "--local", action="store_true", help="not running on cluster"
+    )
     args = parser.parse_args()
     run_loop(args)
