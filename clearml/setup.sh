@@ -11,6 +11,7 @@ cd $CLEARML_GIT_ROOT
 # now we need to tell clearml to use the python from our poetry env
 # this is in the general case (we use the system python above, so we could
 # have just hardcoded this as well)
+pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
 export python_path="/root/miniconda3/envs/loop/bin/python"
 cat > $CLEARML_CUSTOM_BUILD_OUTPUT << EOL
 {
