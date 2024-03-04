@@ -97,10 +97,12 @@ rc_envs = ['Straight-v0','Circle-v0','Drift-v0']
 
 def run_loop(args_):
     args = {}
+    cml_logger = None
     if not args_.local:
         task = clearml.Task.init()
         task_params = task.get_parameters_as_dict(cast=True)
         d = task_params["internal"]
+        cml_logger = task.get_logger()
         for k, v in d.items():
             args[k] = v
     else:
@@ -111,7 +113,7 @@ def run_loop(args_):
     args = box.Box(args)
     
     config = load_config(args.config)
-    logger_kwargs={'output_dir':args.exp_name+'_s'+str(args.seed), 'exp_name':args.exp_name}
+    logger_kwargs={'output_dir':args.exp_name+'_s'+str(args.seed), 'exp_name':args.exp_name, "cml_logger":cml_logger}
     logger = EpochLogger(**logger_kwargs)
     #logger.save_config(locals())
 

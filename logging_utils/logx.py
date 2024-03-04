@@ -76,7 +76,7 @@ class Logger:
     state of a training run, and the trained model.
     """
 
-    def __init__(self, output_dir=None, output_fname='progress.txt', exp_name=None):
+    def __init__(self, output_dir=None, output_fname='progress.txt', exp_name=None, cml_logger=None):
         """
         Initialize a Logger.
 
@@ -111,6 +111,7 @@ class Logger:
         self.log_headers = []
         self.log_current_row = {}
         self.exp_name = exp_name
+        self.cml_logger = cml_logger
 
     def log(self, msg, color='green'):
         """Print a colorized message to stdout."""
@@ -333,6 +334,13 @@ class Logger:
             print("-"*n_slashes)
             for key in self.log_headers:
                 val = self.log_current_row.get(key, "")
+                if val is not "" and self.cml_logger is not None:                    
+                    self.cml_logger.report_scalar(
+                        title="eval",
+                        series=key,
+                        value=val,
+                        iteration=self.log_current_row["Timesteps"],
+                    )
                 valstr = "%8.3g"%val if hasattr(val, "__float__") else val
                 print(fmt%(key, valstr))
                 vals.append(val)
