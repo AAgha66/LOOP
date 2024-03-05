@@ -3,6 +3,7 @@ import numpy as np
 import re
 import gym
 import safety_gym
+import realworldrl_suite.environments as rwrl
 
 ROBOTS = ['Point','Car', 'Doggo']
 TASKS = ['Goal', 'Button']
@@ -29,6 +30,9 @@ DEFAULT_CONFIG = dict(
     use_dist_reward=False,
     stack_obs=False,
 )
+
+CONSTRAINT_INDICES = {"cartpole": 0, "walker": 1, "quadruped": 0}
+SAFETY_COEFFS = {"cartpole": 0.3,"walker": 0.3,"quadruped": 0.5}
 
 class Dict2Obj(object):
     #Turns a dictionary into a class
@@ -247,3 +251,101 @@ class SafetyGymEnv():
     # Sample an action randomly from a uniform distribution over all valid actions
     def sample_random_action(self):
         return self.env.action_space.sample()
+
+class ActionRepeatWrapper(gym.Wrapper):
+    def __init__(self, env, repeat, binary_cost=False):
+        super().__init__(env)
+        if not type(repeat) is int or repeat < 1:
+            raise ValueError("Repeat value must be an integer and greater than 0.")
+        self.action_repeat = repeat
+        self._max_episode_steps = 1000//repeat
+        self.binary_cost = binary_cost
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        track_info = info.copy()
+        track_reward = reward
+        for i in range(self.action_repeat-1):
+            if done or self.action_repeat==1:
+                return observation, reward, done, info
+            observation1, reward1, done1, info1 = self.env.step(action)
+            track_info["cost"] += info1["cost"]
+            track_reward += reward1
+
+        if self.binary_cost:
+            track_info["cost"] = 1 if track_info["cost"] > 0 else 0
+        return observation1, track_reward, done1, track_info
+
+
+class RWRLBridge(gym.Env):
+    def __init__(self, env, constraint_idx):
+        self._env = env
+        self._constraint_idx = constraint_idx
+
+    @property
+    def action_space(self):
+        spec = self._env.action_spec()
+        return gym.spaces.Box(spec.minimum, spec.maximum, dtype=np.float32)
+
+    @property
+    def observation_space(self):        
+        n_obs = 0
+        dtype=None
+        for k, v in self._env.observation_spec().items():
+            if k == "constraints":
+                continue
+            n_obs += v.shape[0]
+            dtype=v.dtype
+        return gym.spaces.Box(-np.inf, np.inf, np.array([n_obs,]), dtype=dtype)
+    
+    def reset(self):
+        time_step = self._env.reset()        
+        obs, _ = self._get_obs(time_step)
+        return obs
+
+    def _get_obs(self, timestep):
+        arrays = []
+        for k, v in self._env.observation_spec().items():
+            if k == "constraints":
+                cost = 1.0 - timestep.observation["constraints"][self._constraint_idx]                
+            else:
+                array = timestep.observation[k]
+                if v.shape == ():
+                    array = np.array([array])
+                arrays.append(array)
+        obs = np.concatenate(arrays, -1)
+        return obs, cost
+
+    def render(self, mode='human', **kwargs):
+        if 'camera_id' not in kwargs.keys():
+            kwargs['camera_id'] = 0
+        return self._env.physics.render(**kwargs)
+
+    def step(self, action):
+        time_step = self._env.step(action)
+        obs, cost = self._get_obs(time_step)
+        reward = time_step.reward or 0
+        done = time_step.last()
+        return obs, reward, done, {"cost": cost}
+
+def make_rwrl(domain_name, action_repeat=2, episode_length=1000, pixel_obs=False):
+    domain, task = domain_name.rsplit('.', 1)
+    env = rwrl.load(
+            domain_name=domain,
+            task_name=task,
+            safety_spec=dict(
+                enable=True, observations=True, safety_coeff=SAFETY_COEFFS[domain]
+            ),
+            environment_kwargs={'flat_observation': False}
+        )        
+    env = RWRLBridge(env, CONSTRAINT_INDICES[domain])
+    #env = gym.wrappers.TimeLimit(env, max_episode_steps=episode_length)
+    env.reset()
+    ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
+    if not pixel_obs:
+        return ar_env
+    render_kwargs = {'height': 64,
+                    'width': 64,
+                    'camera_id': 0,
+                    }
+    return env

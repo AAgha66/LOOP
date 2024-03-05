@@ -1,4 +1,4 @@
-from envs.safety_envs import SafetyGymEnv
+from envs.safety_envs import SafetyGymEnv, make_rwrl
 import numpy as np
 import torch
 import gym
@@ -131,6 +131,17 @@ def run_loop(args_):
         env_config = DEFAULT_ENV_CONFIG_CAR
         env = SafetyGymEnv(robot='Car', task="goal", level=1, seed=args.seed, config=env_config)
         env_fn = lambda: SafetyGymEnv(robot='Car', task="goal", level=1, seed=args.seed, config=env_config)
+    elif 'rwrl' in args.env:
+        env = make_rwrl(
+            domain_name="cartpole.realworld_swingup",
+            action_repeat=2,
+            pixel_obs=False,
+        )
+        env_fn = lambda: make_rwrl(
+            domain_name="cartpole.realworld_swingup",
+            action_repeat=2,
+            pixel_obs=False,
+        )
     else:
         env = gym.make(args.env)
         env_fn = lambda:gym.make(args.env)
