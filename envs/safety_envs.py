@@ -343,13 +343,9 @@ def make_rwrl(domain_name, action_repeat=2, episode_length=1000, pixel_obs=False
             environment_kwargs={'flat_observation': False}
         )        
     env = RWRLBridge(env, CONSTRAINT_INDICES[domain])
-    #env = gym.wrappers.TimeLimit(env, max_episode_steps=episode_length)
     env.reset()
-    ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
-    if not pixel_obs:
+    if action_repeat>1:
+        ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
         return ar_env
-    render_kwargs = {'height': 64,
-                    'width': 64,
-                    'camera_id': 0,
-                    }
-    return env
+    else:
+        return env

@@ -147,13 +147,14 @@ def run_loop(args_):
         env = SafetyGymEnv(robot='Car', task="goal", level=1, seed=args.seed, config=env_config)
         env_fn = lambda: SafetyGymEnv(robot='Car', task="goal", level=1, seed=args.seed, config=env_config)
     elif 'rwrl' in args.env:
+        env_handle = args.env[5:]
         env = make_rwrl(
-            domain_name="cartpole.realworld_swingup",
+            domain_name=env_handle,
             action_repeat=1,
             pixel_obs=False,
         )
         env_fn = lambda: make_rwrl(
-            domain_name="cartpole.realworld_swingup",
+            domain_name=env_handle,
             action_repeat=1,
             pixel_obs=False,
         )
@@ -173,7 +174,7 @@ def run_loop(args_):
 
     # Create replay buffer
     if args.offline:
-        replay_buffer = load_loop_data("cartpole")
+        replay_buffer = load_loop_data(env_handle.split(".")[0])
     else:
         replay_buffer = sac.ReplayBuffer(state_dim, action_dim,int(1e6))
 
@@ -228,8 +229,8 @@ def run_loop(args_):
             if episode_timesteps >= 1000:
                 done=True
 
-        if not args.offline:
-            replay_buffer.store(state, action, reward,next_state,  done_bool, cost=info["cost"])
+        #if not args.offline:
+        replay_buffer.store(state, action, reward,next_state,  done_bool, cost=info["cost"])
         state = next_state
 
 
