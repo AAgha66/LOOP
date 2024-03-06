@@ -11,6 +11,20 @@ import yaml
 from logging_utils.logx import EpochLogger
 import clearml
 import box
+import pickle
+
+def load_loop_data(env_handle):
+    dataset = clearml.Dataset.get(
+        dataset_project="Users/ahmagha/data/loop",
+        dataset_name=env_handle,
+        only_completed=True,
+        only_published=False,
+    )
+    path = dataset.get_local_copy()
+    joined_path = os.path.join(path, f"{env_handle}_25p.pkl")
+    with open(joined_path, "rb") as f:
+        replay_buffer = pickle.load(f)
+    return replay_buffer
 
 def load_config(config_path="config.yml"):
     if os.path.isfile(config_path):
@@ -135,12 +149,12 @@ def run_loop(args_):
     elif 'rwrl' in args.env:
         env = make_rwrl(
             domain_name="cartpole.realworld_swingup",
-            action_repeat=2,
+            action_repeat=1,
             pixel_obs=False,
         )
         env_fn = lambda: make_rwrl(
             domain_name="cartpole.realworld_swingup",
-            action_repeat=2,
+            action_repeat=1,
             pixel_obs=False,
         )
     else:
@@ -158,7 +172,10 @@ def run_loop(args_):
 
 
     # Create replay buffer
-    replay_buffer = sac.ReplayBuffer(state_dim, action_dim,int(1e6))
+    if args.offline:
+        replay_buffer = load_loop_data("cartpole")
+    else:
+        replay_buffer = sac.ReplayBuffer(state_dim, action_dim,int(1e6))
 
     # Choose a controller
     policy, sac_policy, dynamics, lookahead_policies = get_policy(args,  env, replay_buffer, config, policy_name=args.policy, env_fn=env_fn)
@@ -211,8 +228,8 @@ def run_loop(args_):
             if episode_timesteps >= 1000:
                 done=True
 
-
-        replay_buffer.store(state, action, reward,next_state,  done_bool, cost=info["cost"])
+        if not args.offline:
+            replay_buffer.store(state, action, reward,next_state,  done_bool, cost=info["cost"])
         state = next_state
 
 
