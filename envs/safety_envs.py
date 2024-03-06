@@ -316,6 +316,10 @@ class RWRLBridge(gym.Env):
         obs = np.concatenate(arrays, -1)
         return obs, cost
 
+    def get_observation_cost(self, obs):
+        cost = np.array(np.abs(obs[:,0])>0.6)*1
+        return cost
+
     def render(self, mode='human', **kwargs):
         if 'camera_id' not in kwargs.keys():
             kwargs['camera_id'] = 0
