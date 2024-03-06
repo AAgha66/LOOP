@@ -98,6 +98,7 @@ rc_envs = ['Straight-v0','Circle-v0','Drift-v0']
 def run_loop(args_):
     args = {}
     cml_logger = None
+    task = None
     if not args_.local:
         task = clearml.Task.init()
         task_params = task.get_parameters_as_dict(cast=True)
@@ -180,12 +181,15 @@ def run_loop(args_):
         if t < args.start_timesteps:
             action = env.action_space.sample()
         else:
-            action = policy.get_action(np.array(state),env=env)
-            action = action + np.random.normal(action.shape) * noise_amount
-            action = np.clip(
-                action,
-                env.action_space.low,
-                env.action_space.high)
+            if args.offline:
+                action = sac_policy.get_action(np.array(state),deterministic=True)
+            else:
+                action = policy.get_action(np.array(state),env=env)
+                action = action + np.random.normal(action.shape) * noise_amount
+                action = np.clip(
+                    action,
+                    env.action_space.low,
+                    env.action_space.high)
 
         # Take the safe action
         next_state, reward, done, info = env.step(action)
@@ -253,6 +257,9 @@ def run_loop(args_):
             logger.log_tabular('DynamicsValLoss', average_only=True)
             logger.log_tabular('Time', time.time()-start_time)
             logger.dump_tabular()
+            if args.offline:
+                logger.setup_pytorch_multiple_saver([dynamics,sac_policy],["model", "ac"])
+                logger._pytorch_multiple_save(t, task)                
 
 
 
@@ -269,6 +276,9 @@ if __name__=='__main__':
     parser.add_argument("--dynamics_freq", default=250, type=int)
     parser.add_argument("--exp_name", default="dump")
     parser.add_argument('--config', '-c', type=str, default='configs/safety_config_gym.yml', help="specify the path to the configuation file of the models")
+    parser.add_argument(
+        "--offline", action="store_true", help="not running on cluster"
+    )
     parser.add_argument(
         "--local", action="store_true", help="not running on cluster"
     )

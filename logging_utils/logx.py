@@ -292,7 +292,7 @@ class Logger:
                 # not being able to save the source code.
                 torch.save(self.pytorch_saver_elements, fname)
 
-    def _pytorch_multiple_save(self, itr=None):
+    def _pytorch_multiple_save(self, itr=None, task=None):
         """
         Saves the PyTorch model (or models).
         """
@@ -302,7 +302,8 @@ class Logger:
                     "First have to setup saving with self.setup_pytorch_multiple_saver"
                 fpath = 'pyt_save'
                 fpath = osp.join(self.output_dir, fpath)
-                fname = self.name_to_save[i] + ('%d'%itr if itr is not None else '') + '.pt'
+                name = self.name_to_save[i] + ('%d'%itr if itr is not None else '')
+                fname =  name + '.pt'
                 fname = osp.join(fpath, fname)
                 os.makedirs(fpath, exist_ok=True)
                 with warnings.catch_warnings():
@@ -316,6 +317,8 @@ class Logger:
                     # We use a catch_warnings() context to avoid the warnings about
                     # not being able to save the source code.
                     torch.save(self.pytorch_multiple_saver_elements[i], fname)
+                    if task is not None:
+                        task.upload_artifact(name, fname)
 
 
     def dump_tabular(self):
