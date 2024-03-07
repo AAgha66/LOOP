@@ -201,7 +201,7 @@ def run_loop(args_):
     # Choose a controller
     sac_policy, dynamics = None, None
     if args.pretrained:
-        sac_policy, dynamics = load_cml_model(env="", pct=25)
+        sac_policy, dynamics = load_cml_model(env=env_handle.split(".")[0], pct=25)
     policy, sac_policy, dynamics, lookahead_policies = get_policy(args,  env, replay_buffer, config, policy_name=args.policy, env_fn=env_fn, pretrained_sac_policy=sac_policy, pretrained_dynamics=dynamics)
     # Noise to be added to controller while executing trajectory
     noise_amount = config['mpc_config']['exploration_noise']
