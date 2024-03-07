@@ -332,6 +332,19 @@ class RWRLBridge(gym.Env):
         done = time_step.last()
         return obs, reward, done, {"cost": cost}
 
+class CartpoleRWRLBridge(RWRLBridge):
+    def get_observation_cost(self, obs):
+        return np.array(np.abs(obs[:,0])>0.6) * 1
+
+class WalkerRWRLBridge(RWRLBridge):
+    def get_observation_cost(self, obs):
+        return (np.abs(self.env.physics.named.data.qvel[3:]) >= (0.3 * 65)).any() * 1
+
+class QuadrupedRWRLBridge(RWRLBridge):
+    def get_observation_cost(self, obs):
+        cost = ((np.abs(self.env.physics.named.data.qpos[self.env.task._hinge_names]))>(0.5 * 60 * np.pi / 180)).any() * 1
+        return cost
+
 def make_rwrl(domain_name, action_repeat=2, episode_length=1000, pixel_obs=False):
     domain, task = domain_name.rsplit('.', 1)
     env = rwrl.load(
@@ -342,7 +355,14 @@ def make_rwrl(domain_name, action_repeat=2, episode_length=1000, pixel_obs=False
             ),
             environment_kwargs={'flat_observation': False}
         )        
-    env = RWRLBridge(env, CONSTRAINT_INDICES[domain])
+    if domain.lower()=="cartpole":
+        env = CartpoleRWRLBridge(env, CONSTRAINT_INDICES[domain])
+    elif domain.lower()=="walker":
+        env = WalkerRWRLBridge(env, CONSTRAINT_INDICES[domain])
+    elif domain.lower()=="quadruped":
+        env = QuadrupedRWRLBridge(env, CONSTRAINT_INDICES[domain])
+    else:
+        raise ValueError(f"This env:{domain} is not supported")
     env.reset()
     if action_repeat>1:
         ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
