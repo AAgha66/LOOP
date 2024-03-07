@@ -13,7 +13,7 @@ import clearml
 import box
 import pickle
 
-ckpt_idx = {"cartpole": 39999, "walker": 26999, "quadruped": 53999}
+ckpt_idx = {"cartpole": 41999, "walker": 26999, "quadruped": 53999}
 def load_loop_data(env_handle):
     dataset = clearml.Dataset.get(
         dataset_project="Users/ahmagha/data/loop",
