@@ -229,8 +229,8 @@ def run_loop(args_):
             if episode_timesteps >= 1000:
                 done=True
 
-        #if not args.offline:
-        replay_buffer.store(state, action, reward,next_state,  done_bool, cost=info["cost"])
+        if not args.offline:
+            replay_buffer.store(state, action, reward,next_state,  done_bool, cost=info["cost"])
         state = next_state
 
 
