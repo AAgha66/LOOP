@@ -26,6 +26,26 @@ def load_loop_data(env_handle):
         replay_buffer = pickle.load(f)
     return replay_buffer
 
+def load_cml_model(
+    env, pct, project_name="pretrained_loop", task_name="loop"
+):
+    task = clearml.Task.get_task(
+        project_name=f"Users/ahmagha/{project_name}",
+        task_name=f"{task_name}_{env}_{pct}",
+    )
+    highest_idx = 0
+    for k, v in task.artifacts.items():
+        if "ac" in k:
+            if int(k[2:]) > highest_idx:
+                highest_idx = int(k[2:])
+    
+    ac_path = task.artifacts[f"ac{highest_idx}"].get_local_copy()
+    model_path = task.artifacts[f"model{highest_idx}"].get_local_copy()
+    ac = torch.load(ac_path)
+    model = torch.load(model_path)
+    return ac, model
+
+
 def load_config(config_path="config.yml"):
     if os.path.isfile(config_path):
         f = open(config_path)
@@ -173,14 +193,16 @@ def run_loop(args_):
 
 
     # Create replay buffer
-    if args.offline:
+    if args.offline or args.pretrained:
         replay_buffer = load_loop_data(env_handle.split(".")[0])
     else:
         replay_buffer = sac.ReplayBuffer(state_dim, action_dim,int(1e6))
 
     # Choose a controller
-    policy, sac_policy, dynamics, lookahead_policies = get_policy(args,  env, replay_buffer, config, policy_name=args.policy, env_fn=env_fn)
-    
+    sac_policy, dynamics = None, None
+    if args.pretrained:
+        sac_policy, dynamics = load_cml_model(env="", pct=25)
+    policy, sac_policy, dynamics, lookahead_policies = get_policy(args,  env, replay_buffer, config, policy_name=args.policy, env_fn=env_fn, pretrained_sac_policy=sac_policy, pretrained_dynamics=dynamics)
     # Noise to be added to controller while executing trajectory
     noise_amount = config['mpc_config']['exploration_noise']
 
@@ -201,7 +223,7 @@ def run_loop(args_):
         else:
             if args.offline:
                 action = sac_policy.get_action(np.array(state),deterministic=True)
-            else:
+            else:                
                 action = policy.get_action(np.array(state),env=env)
                 action = action + np.random.normal(action.shape) * noise_amount
                 action = np.clip(
@@ -296,6 +318,9 @@ if __name__=='__main__':
     parser.add_argument('--config', '-c', type=str, default='configs/safety_config_gym.yml', help="specify the path to the configuation file of the models")
     parser.add_argument(
         "--offline", action="store_true", help="not running on cluster"
+    )
+    parser.add_argument(
+        "--pretrained", action="store_true", help="not running on cluster"
     )
     parser.add_argument(
         "--local", action="store_true", help="not running on cluster"

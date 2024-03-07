@@ -17,7 +17,7 @@ def default_termination_function(state,action,next_state):
     return done
 
 
-def get_policy(all_args, env, replay_buffer, config, policy_name='LOOP_SAC',env_fn=None):
+def get_policy(all_args, env, replay_buffer, config, policy_name='LOOP_SAC',env_fn=None, pretrained_sac_policy=None, pretrained_dynamics=None):
     policy,sac_policy = None, None
     dynamics_config = config['dynamics_config']
     mpc_config = config['mpc_config']
@@ -70,12 +70,16 @@ def get_policy(all_args, env, replay_buffer, config, policy_name='LOOP_SAC',env_
             dynamics,
             sac_policy,default_termination_function)
     elif all_args.policy == 'safeLOOP_ARC':
-        env_model = EnsembleDynamicsModel(7, 5, state_dim, action_dim, 1, hidden_dim,
-                                          use_decay=True)
-        dynamics = PredictEnvPETS(env_model,replay_buffer, all_args.env, 'pytorch')  
-        sac_policy = sac.SAC(env_fn,dynamics,replay_buffer,default_termination_function)
-        sac_policy.update_every=50
-        sac_policy.update_after=1000
+        if pretrained_dynamics is None:
+            env_model = EnsembleDynamicsModel(7, 5, state_dim, action_dim, 1, hidden_dim,
+                                            use_decay=True)
+            dynamics = PredictEnvPETS(env_model,replay_buffer, all_args.env, 'pytorch')  
+            sac_policy = sac.SAC(env_fn,dynamics,replay_buffer,default_termination_function)
+            sac_policy.update_every=50
+            sac_policy.update_after=1000
+        else:
+            sac_policy = pretrained_sac_policy
+            dynamics = pretrained_dynamics
         policy = arc_safety.safeARC(
             env,
             dynamics,
