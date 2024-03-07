@@ -13,6 +13,7 @@ import clearml
 import box
 import pickle
 
+ckpt_idx = {"cartpole": 39999, "walker": 26999, "quadruped": 53999}
 def load_loop_data(env_handle):
     dataset = clearml.Dataset.get(
         dataset_project="Users/ahmagha/data/loop",
@@ -33,14 +34,8 @@ def load_cml_model(
         project_name=f"Users/ahmagha/{project_name}",
         task_name=f"{task_name}_{env}_{pct}",
     )
-    highest_idx = 0
-    for k, v in task.artifacts.items():
-        if "ac" in k:
-            if int(k[2:]) > highest_idx:
-                highest_idx = int(k[2:])
-    
-    ac_path = task.artifacts[f"ac{highest_idx}"].get_local_copy()
-    model_path = task.artifacts[f"model{highest_idx}"].get_local_copy()
+    ac_path = task.artifacts[f"ac{ckpt_idx[env]}"].get_local_copy()
+    model_path = task.artifacts[f"model{ckpt_idx[env]}"].get_local_copy()
     ac = torch.load(ac_path)
     model = torch.load(model_path)
     return ac, model
@@ -221,7 +216,7 @@ def run_loop(args_):
         if t < args.start_timesteps:
             action = env.action_space.sample()
         else:
-            if args.offline:
+            if args.offline or args.sac_policy:
                 action = sac_policy.get_action(np.array(state),deterministic=True)
             else:                
                 action = policy.get_action(np.array(state),env=env)
@@ -324,6 +319,9 @@ if __name__=='__main__':
     )
     parser.add_argument(
         "--local", action="store_true", help="not running on cluster"
+    )
+    parser.add_argument(
+        "--sac_policy", action="store_true", help="not running on cluster"
     )
     args = parser.parse_args()
     run_loop(args)
