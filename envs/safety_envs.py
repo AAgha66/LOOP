@@ -338,13 +338,11 @@ class CartpoleRWRLBridge(RWRLBridge):
 
 class WalkerRWRLBridge(RWRLBridge):
     def get_observation_cost(self, obs):
-        return (np.abs(self._env.physics.named.data.qvel[3:]) >= (0.3 * 65)).any() * 1
+        return (np.abs(obs[-6:]) >= (0.3 * 65)).any() * 1
 
 class QuadrupedRWRLBridge(RWRLBridge):
     def get_observation_cost(self, obs):
-        from pdb import set_trace
-        set_trace()        
-        cost = ((np.abs(self._env.physics.named.data.qpos[self._env.task._hinge_names]))>(0.5 * 60 * np.pi / 180)).any() * 1
+        cost = ((np.abs(obs[:16]))>(0.5 * 60 * np.pi / 180)).any() * 1
         return cost
 
 def make_rwrl(domain_name, action_repeat=2, episode_length=1000, pixel_obs=False):
