@@ -265,7 +265,6 @@ def run_loop(args_):
 
 
         if done:
-            fps_list = []
             policy.reset()
             evaluation_costs += episode_cost
             evaluation_rewards += episode_reward
@@ -297,6 +296,7 @@ def run_loop(args_):
             logger.log_tabular('Time', time.time()-start_time)
             logger.log_tabular('FPS', np.mean(fps_list))
             logger.dump_tabular()
+            fps_list = []
             if args.offline:
                 logger.setup_pytorch_multiple_saver([dynamics,sac_policy],["model", "ac"])
                 logger._pytorch_multiple_save(t, task)                
