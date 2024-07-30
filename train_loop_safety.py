@@ -200,7 +200,7 @@ def run_loop(args_):
     policy, sac_policy, dynamics, lookahead_policies = get_policy(args,  env, replay_buffer, config, policy_name=args.policy, env_fn=env_fn, pretrained_sac_policy=sac_policy, pretrained_dynamics=dynamics)
     # Noise to be added to controller while executing trajectory
     noise_amount = config['mpc_config']['exploration_noise']
-
+    fps_list = []
     start_time = time.time()
     total_timesteps = 0
     episode_count =0 
@@ -218,13 +218,16 @@ def run_loop(args_):
         else:
             if args.offline or args.sac_policy:
                 action = sac_policy.get_action(np.array(state),deterministic=True)
-            else:                
+            else:
+                start = time.time()
                 action = policy.get_action(np.array(state),env=env)
                 action = action + np.random.normal(action.shape) * noise_amount
                 action = np.clip(
                     action,
                     env.action_space.low,
                     env.action_space.high)
+                duration = time.time() - start
+                fps_list.append(1.0 / duration)
 
         # Take the safe action
         next_state, reward, done, info = env.step(action)
@@ -262,6 +265,7 @@ def run_loop(args_):
 
 
         if done:
+            fps_list = []
             policy.reset()
             evaluation_costs += episode_cost
             evaluation_rewards += episode_reward
@@ -291,6 +295,7 @@ def run_loop(args_):
             logger.log_tabular('DynamicsTrainLoss', average_only=True)
             logger.log_tabular('DynamicsValLoss', average_only=True)
             logger.log_tabular('Time', time.time()-start_time)
+            logger.log_tabular('FPS', np.mean(fps_list))
             logger.dump_tabular()
             if args.offline:
                 logger.setup_pytorch_multiple_saver([dynamics,sac_policy],["model", "ac"])
